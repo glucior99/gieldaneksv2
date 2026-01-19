@@ -55,12 +55,11 @@ th {
 
 <h2>Giełdy</h2>
 <div class="tabs">
-    {% for ex_id, ex_name in all_exchanges %}
-        <a href="/admin?exchange_id={{ ex_id }}"
-           class="{% if selected_exchange == ex_id %}active{% endif %}">
-            {{ ex_name }}
-        </a>
-    {% endfor %}
+       {% for ex_id, ex_name in all_exchanges %}
+            <a href="/admin?exchange_id={{ ex_id }}">{{ ex_name }}</a>
+            {% endfor %}
+            <a href="/admin">[Wszystkie]</a>
+
     <a href="/admin" {% if not selected_exchange %}class="active"{% endif %}>
         [Wszystkie]
     </a>
