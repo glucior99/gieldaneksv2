@@ -197,28 +197,23 @@ def admin():
     cur.execute("SELECT * FROM exchanges")
     all_exchanges = cur.fetchall()
 
-if selected_exchange:
-    exchanges = [e for e in all_exchanges if e[0] == selected_exchange]
-else:
-    exchanges = all_exchanges
-
+    if selected_exchange:
+        exchanges = [e for e in all_exchanges if e[0] == selected_exchange]
+    else:
+        exchanges = all_exchanges
 
     exchange_data = []
     stats_by_exchange = {}
 
     for ex in exchanges:
         # materiały giełdy
-        cur.execute(
-            "SELECT * FROM materials WHERE exchange_id=?",
-            (ex[0],)
-        )
+        cur.execute("SELECT * FROM materials WHERE exchange_id=?", (ex[0],))
         mats = cur.fetchall()
         exchange_data.append((ex[0], ex[1], mats))
 
         stats = []
 
         for m in mats:
-            # wszystkie ceny materiału (historia)
             cur.execute(
                 "SELECT user, price FROM prices WHERE material_id=? ORDER BY id",
                 (m[0],)
@@ -227,12 +222,10 @@ else:
             if not rows:
                 continue
 
-            # średnia i odchylenie z WSZYSTKICH cen
             all_prices = [p for _, p in rows]
             avg = round(statistics.mean(all_prices), 2)
             std = round(statistics.stdev(all_prices), 2) if len(all_prices) > 1 else 0
 
-            # ceny per użytkownik
             user_prices = {}
             for u, p in rows:
                 user_prices.setdefault(u, []).append(p)
@@ -241,31 +234,19 @@ else:
                 current_price = history[-1]
                 max_p = max(history)
                 min_p = min(history)
-
-                diff_percent = 0
-                if max_p > 0:
-                    diff_percent = round((max_p - min_p) / max_p * 100, 2)
-
-                stats.append((
-                    m[1],          # materiał
-                    u,             # użytkownik
-                    current_price, # cena użytkownika
-                    avg,           # średnia materiału
-                    std,           # odchylenie materiału
-                    max_p,         # max użytkownika
-                    min_p,         # min użytkownika
-                    diff_percent   # % różnicy
-                ))
+                diff_percent = round((max_p - min_p) / max_p * 100, 2) if max_p > 0 else 0
+                stats.append((m[1], u, current_price, avg, std, max_p, min_p, diff_percent))
 
         stats_by_exchange[ex[0]] = stats
 
-        return render_template(
-            "admin.html",
-            exchange_data=exchange_data,
-            stats_by_exchange=stats_by_exchange,
-            all_exchanges=all_exchanges,
-            selected_exchange=selected_exchange
-        )
+    return render_template(
+        "admin.html",
+        exchange_data=exchange_data,
+        stats_by_exchange=stats_by_exchange,
+        all_exchanges=all_exchanges,
+        selected_exchange=selected_exchange
+    )
+
 
 
 if __name__ == "__main__":
