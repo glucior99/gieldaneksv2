@@ -202,13 +202,13 @@ def admin():
 
         stats = []
         for m in mats:
-                cur.execute(
-                "SELECT user, price FROM prices WHERE material_id=? ORDER BY id",
-                (m[0],)
-            )
-            rows = cur.fetchall()
-            if not rows:
-                continue
+        cur.execute(
+        "SELECT user, price FROM prices WHERE material_id=? ORDER BY id",
+        (m[0],)
+        )
+        rows = cur.fetchall()
+        if not rows:
+            continue
             
             # średnia i odchylenie – ze WSZYSTKICH cen materiału
             all_prices = [p for _, p in rows]
