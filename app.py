@@ -259,13 +259,13 @@ else:
 
         stats_by_exchange[ex[0]] = stats
 
-    return render_template(
-        "admin.html",
-        exchange_data=exchange_data,
-        stats_by_exchange=stats_by_exchange,
-        all_exchanges=all_exchanges,
-        selected_exchange=selected_exchange
-    )
+return render_template(
+    "admin.html",
+    exchange_data=exchange_data,
+     stats_by_exchange=stats_by_exchange,
+     all_exchanges=all_exchanges,
+    selected_exchange=selected_exchange
+)
 
 
 
