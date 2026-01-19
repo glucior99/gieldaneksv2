@@ -202,20 +202,44 @@ def admin():
 
         stats = []
         for m in mats:
-            cur.execute("SELECT price FROM prices WHERE material_id=?", (m[0],))
-            prices = [p[0] for p in cur.fetchall()]
-            if not prices:
+                cur.execute(
+                "SELECT user, price FROM prices WHERE material_id=? ORDER BY id",
+                (m[0],)
+            )
+            rows = cur.fetchall()
+            if not rows:
                 continue
+            
+            # średnia i odchylenie – ze WSZYSTKICH cen materiału
+            all_prices = [p for _, p in rows]
+            avg = round(statistics.mean(all_prices), 2)
+            std = round(statistics.stdev(all_prices), 2) if len(all_prices) > 1 else 0
+            
+            # ceny per użytkownik
+            user_prices = {}
+            for u, p in rows:
+                user_prices.setdefault(u, []).append(p)
+            
+            for u, history in user_prices.items():
+                user_price = history[-1]          # aktualna cena użytkownika
+                max_p = max(history)              # max tego użytkownika
+                min_p = min(history)              # min tego użytkownika
+            
+                diff_percent = 0
+                if max_p > 0:
+                    diff_percent = round((max_p - min_p) / max_p * 100, 2)
+            
+                stats.append((
+                    m[1],          # materiał
+                    u,             # użytkownik
+                    user_price,    # cena użytkownika
+                    avg,           # średnia materiału
+                    std,           # odchylenie materiału
+                    max_p,         # max użytkownika
+                    min_p,         # min użytkownika
+                    diff_percent   # % różnicy
+                ))
 
-            avg = round(sum(prices) / len(prices), 2)
-            std = round(statistics.stdev(prices), 2) if len(prices) > 1 else 0
-            max_p = max(prices)
-            min_p = min(prices)
-
-            cur.execute("SELECT user, price FROM prices WHERE material_id=?", (m[0],))
-            for u, p in cur.fetchall():
-                drop = round((max_p - p) / max_p * 100, 2)
-                stats.append((m[1], u, p, avg, std, max_p, min_p, drop))
 
         stats_by_exchange[ex[0]] = stats
 
