@@ -178,10 +178,15 @@ def admin():
     con = db()
     cur = con.cursor()
 
+    # dodawanie giełdy
     if "exchange_name" in request.form:
-        cur.execute("INSERT INTO exchanges VALUES (NULL,?)", (request.form["exchange_name"],))
+        cur.execute(
+            "INSERT INTO exchanges VALUES (NULL,?)",
+            (request.form["exchange_name"],)
+        )
         con.commit()
 
+    # dodawanie materiału
     if "material_name" in request.form:
         cur.execute(
             "INSERT INTO materials VALUES (NULL,?,?)",
@@ -189,6 +194,7 @@ def admin():
         )
         con.commit()
 
+    # wszystkie giełdy
     cur.execute("SELECT * FROM exchanges")
     exchanges = cur.fetchall()
 
@@ -196,50 +202,55 @@ def admin():
     stats_by_exchange = {}
 
     for ex in exchanges:
-        cur.execute("SELECT * FROM materials WHERE exchange_id=?", (ex[0],))
+        # materiały giełdy
+        cur.execute(
+            "SELECT * FROM materials WHERE exchange_id=?",
+            (ex[0],)
+        )
         mats = cur.fetchall()
         exchange_data.append((ex[0], ex[1], mats))
 
         stats = []
+
         for m in mats:
-        cur.execute(
-        "SELECT user, price FROM prices WHERE material_id=? ORDER BY id",
-        (m[0],)
-        )
-        rows = cur.fetchall()
-        if not rows:
-            continue
-            
-            # średnia i odchylenie – ze WSZYSTKICH cen materiału
+            # wszystkie ceny materiału (historia)
+            cur.execute(
+                "SELECT user, price FROM prices WHERE material_id=? ORDER BY id",
+                (m[0],)
+            )
+            rows = cur.fetchall()
+            if not rows:
+                continue
+
+            # średnia i odchylenie z WSZYSTKICH cen
             all_prices = [p for _, p in rows]
             avg = round(statistics.mean(all_prices), 2)
             std = round(statistics.stdev(all_prices), 2) if len(all_prices) > 1 else 0
-            
+
             # ceny per użytkownik
             user_prices = {}
             for u, p in rows:
                 user_prices.setdefault(u, []).append(p)
-            
+
             for u, history in user_prices.items():
-                user_price = history[-1]          # aktualna cena użytkownika
-                max_p = max(history)              # max tego użytkownika
-                min_p = min(history)              # min tego użytkownika
-            
+                current_price = history[-1]
+                max_p = max(history)
+                min_p = min(history)
+
                 diff_percent = 0
                 if max_p > 0:
                     diff_percent = round((max_p - min_p) / max_p * 100, 2)
-            
+
                 stats.append((
                     m[1],          # materiał
                     u,             # użytkownik
-                    user_price,    # cena użytkownika
+                    current_price, # cena użytkownika
                     avg,           # średnia materiału
                     std,           # odchylenie materiału
                     max_p,         # max użytkownika
                     min_p,         # min użytkownika
                     diff_percent   # % różnicy
                 ))
-
 
         stats_by_exchange[ex[0]] = stats
 
