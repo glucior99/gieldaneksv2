@@ -155,19 +155,13 @@ def add_price(mid):
     )
     if cur.fetchone():
         cur.execute(
-            "UPDATE prices SET price=? WHERE material_id=? AND user=?",
-            (price, mid, session["user"])
-        )
-    else:
-        cur.execute(
             "INSERT INTO prices VALUES (NULL,?,?,?)",
             (session["user"], mid, price)
         )
-
-    con.commit()
-    con.close()
+    
+        con.commit()
+        con.close()
     return redirect("/user")
-
 
 # ---------- ADMIN ----------
 @app.route("/admin", methods=["GET", "POST"])
