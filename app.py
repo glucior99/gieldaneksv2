@@ -190,7 +190,13 @@ def admin():
 
     # wszystkie giełdy
     cur.execute("SELECT * FROM exchanges")
-    exchanges = cur.fetchall()
+    all_exchanges = cur.fetchall()
+
+if selected_exchange:
+    exchanges = [e for e in all_exchanges if e[0] == selected_exchange]
+else:
+    exchanges = all_exchanges
+
 
     exchange_data = []
     stats_by_exchange = {}
