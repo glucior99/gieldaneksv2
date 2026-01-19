@@ -126,9 +126,9 @@ def user():
             )
             all_prices = [r[0] for r in cur.fetchall()]
 
-               rank = "-"
+            rank = "-"
 
-                if my_price is not None and all_prices:
+            if my_price is not None and all_prices:
                 sorted_prices = sorted(all_prices)
                 position = sorted_prices.index(my_price) + 1
 
