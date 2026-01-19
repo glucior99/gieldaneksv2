@@ -126,12 +126,17 @@ def user():
             )
             all_prices = [r[0] for r in cur.fetchall()]
 
-            rank = "-"
-            if my_price and all_prices:
-                if all_prices.count(my_price) > 1:
+               rank = "-"
+
+                if my_price is not None and all_prices:
+                sorted_prices = sorted(all_prices)
+                position = sorted_prices.index(my_price) + 1
+
+                if position == 1 and sorted_prices.count(my_price) > 1:
                     rank = "REMIS"
                 else:
-                    rank = all_prices.index(my_price) + 1
+                    rank = position
+
 
             materials.append((m[0], m[1], my_price, rank))
 
@@ -254,12 +259,14 @@ else:
 
         stats_by_exchange[ex[0]] = stats
 
-    con.close()
-    return render_template(
+        return render_template(
         "admin.html",
         exchange_data=exchange_data,
-        stats_by_exchange=stats_by_exchange
+        stats_by_exchange=stats_by_exchange,
+        all_exchanges=all_exchanges,
+        selected_exchange=selected_exchange
     )
+
 
 
 if __name__ == "__main__":
