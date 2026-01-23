@@ -137,7 +137,6 @@ def user():
                 else:
                     rank = position
 
-
             materials.append((m[0], m[1], my_price, rank))
 
         exchange_data.append((ex[0], ex[1], materials))
@@ -177,8 +176,13 @@ def admin():
     con = db()
     cur = con.cursor()
 
+    # Pobierz wybraną giełdę z formularza (jeśli istnieje)
+    selected_exchange = request.args.get('exchange') or request.form.get('selected_exchange')
+    if selected_exchange:
+        selected_exchange = int(selected_exchange)
+
     # dodawanie giełdy
-    if "exchange_name" in request.form:
+    if "exchange_name" in request.form and request.form["exchange_name"]:
         cur.execute(
             "INSERT INTO exchanges VALUES (NULL,?)",
             (request.form["exchange_name"],)
@@ -186,7 +190,7 @@ def admin():
         con.commit()
 
     # dodawanie materiału
-    if "material_name" in request.form:
+    if "material_name" in request.form and request.form["material_name"]:
         cur.execute(
             "INSERT INTO materials VALUES (NULL,?,?)",
             (request.form["material_name"], request.form["exchange_id"])
@@ -248,6 +252,5 @@ def admin():
     )
 
 
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    app.run(host="0.0.0.0", port=10000, debug=True)
