@@ -106,65 +106,61 @@ def user():
     exchanges = cur.fetchall()
 
     exchange_data = []
-
     for ex in exchanges:
         cur.execute("SELECT * FROM materials WHERE exchange_id=?", (ex[0],))
         mats = cur.fetchall()
         materials = []
 
         for m in mats:
+            # Pobieramy ostatnią (najnowszą) cenę użytkownika
             cur.execute(
-                "SELECT price FROM prices WHERE material_id=? AND user=?",
+                "SELECT price FROM prices WHERE material_id=? AND user=? ORDER BY id DESC LIMIT 1",
                 (m[0], session["user"])
             )
             row = cur.fetchone()
             my_price = row[0] if row else None
 
+            # Pobieramy najniższe ceny wszystkich użytkowników (top 1 dla każdego)
             cur.execute(
-                "SELECT price FROM prices WHERE material_id=? ORDER BY price ASC",
+                "SELECT MIN(price) FROM prices WHERE material_id=? GROUP BY user ORDER BY MIN(price) ASC",
                 (m[0],)
             )
-            all_prices = [r[0] for r in cur.fetchall()]
+            all_min_prices = [r[0] for r in cur.fetchall()]
 
             rank = "-"
-
-            if my_price is not None and all_prices:
-                sorted_prices = sorted(all_prices)
-                position = sorted_prices.index(my_price) + 1
-
-                if position == 1 and sorted_prices.count(my_price) > 1:
-                    rank = "REMIS"
-                else:
-                    rank = position
+            if my_price is not None and all_min_prices:
+                try:
+                    position = all_min_prices.index(my_price) + 1
+                    if position == 1 and all_min_prices.count(my_price) > 1:
+                        rank = "REMIS"
+                    else:
+                        rank = position
+                except ValueError:
+                    rank = ">10" # Jeśli cena nie jest już minimalna
 
             materials.append((m[0], m[1], my_price, rank))
-
         exchange_data.append((ex[0], ex[1], materials))
-
+    
+    con.close()
     return render_template("user.html", exchange_data=exchange_data)
-
 
 @app.route("/add_price/<int:mid>", methods=["POST"])
 def add_price(mid):
+    if "user" not in session:
+        return redirect("/")
     try:
-        price = float(request.form["price"])
-    except:
-        return redirect("/user")
-
-    con = db()
-    cur = con.cursor()
-    cur.execute(
-        "SELECT * FROM prices WHERE material_id=? AND user=?",
-        (mid, session["user"])
-    )
-    if cur.fetchone():
+        price = float(request.form["price"].replace(",", "."))
+        con = db()
+        cur = con.cursor()
         cur.execute(
-            "INSERT INTO prices VALUES (NULL,?,?,?)",
+            "INSERT INTO prices (user, material_id, price) VALUES (?,?,?)",
             (session["user"], mid, price)
         )
-    
         con.commit()
         con.close()
+    except Exception as e:
+        print(f"Błąd dodawania ceny: {e}")
+    
     return redirect("/user")
 
 # ---------- ADMIN ----------
@@ -176,31 +172,27 @@ def admin():
     con = db()
     cur = con.cursor()
 
-    # Pobierz wybraną giełdę z formularza (jeśli istnieje)
-    selected_exchange = request.args.get('exchange') or request.form.get('selected_exchange')
-    if selected_exchange:
-        selected_exchange = int(selected_exchange)
+    # --- POPRAWKA: Definicja selected_exchange ---
+    selected_exchange = request.args.get('exchange_id', type=int)
 
-    # dodawanie giełdy
-    if "exchange_name" in request.form and request.form["exchange_name"]:
-        cur.execute(
-            "INSERT INTO exchanges VALUES (NULL,?)",
-            (request.form["exchange_name"],)
-        )
-        con.commit()
+    if request.method == "POST":
+        # dodawanie giełdy
+        if "exchange_name" in request.form:
+            cur.execute("INSERT INTO exchanges (name) VALUES (?)", (request.form["exchange_name"],))
+            con.commit()
+        # dodawanie materiału
+        if "material_name" in request.form:
+            cur.execute(
+                "INSERT INTO materials (name, exchange_id) VALUES (?,?)",
+                (request.form["material_name"], request.form["exchange_id"])
+            )
+            con.commit()
 
-    # dodawanie materiału
-    if "material_name" in request.form and request.form["material_name"]:
-        cur.execute(
-            "INSERT INTO materials VALUES (NULL,?,?)",
-            (request.form["material_name"], request.form["exchange_id"])
-        )
-        con.commit()
-
-    # wszystkie giełdy
+    # pobieranie giełd do filtracji
     cur.execute("SELECT * FROM exchanges")
     all_exchanges = cur.fetchall()
 
+    # Filtrowanie wyświetlanych giełd
     if selected_exchange:
         exchanges = [e for e in all_exchanges if e[0] == selected_exchange]
     else:
@@ -210,21 +202,15 @@ def admin():
     stats_by_exchange = {}
 
     for ex in exchanges:
-        # materiały giełdy
         cur.execute("SELECT * FROM materials WHERE exchange_id=?", (ex[0],))
         mats = cur.fetchall()
         exchange_data.append((ex[0], ex[1], mats))
-
         stats = []
 
         for m in mats:
-            cur.execute(
-                "SELECT user, price FROM prices WHERE material_id=? ORDER BY id",
-                (m[0],)
-            )
+            cur.execute("SELECT user, price FROM prices WHERE material_id=? ORDER BY id", (m[0],))
             rows = cur.fetchall()
-            if not rows:
-                continue
+            if not rows: continue
 
             all_prices = [p for _, p in rows]
             avg = round(statistics.mean(all_prices), 2)
@@ -243,6 +229,7 @@ def admin():
 
         stats_by_exchange[ex[0]] = stats
 
+    con.close()
     return render_template(
         "admin.html",
         exchange_data=exchange_data,
